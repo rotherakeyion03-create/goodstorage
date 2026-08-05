@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌾 谷子仓库 - 温馨管理你的宝贝</title>
+    <style>
+        :root {
+            --bg: #FFF8EC;
+            --card-bg: #FFFDF7;
+            --warm-cream: #FFF3D6;
+            --warm-beige: #F5E6CC;
+            --warm-brown: #C4A882;
+            --text: #5D4E37;
+            --text-light: #8B7355;
+            --accent: #E8C97A;
+            --accent-hover: #D4A94E;
+            --danger: #E07B6C;
+            --danger-hover: #C96A5C;
+            --success: #7BA87F;
+            --border: #E8D5B7;
+            --shadow: 0 2px 12px rgba(139, 115, 85, 0.10);
+            --shadow-hover: 0 6px 24px rgba(139, 115, 85, 0.16);
+            --radius: 14px;
+            --radius-sm: 8px;
+            --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font); background: var(--bg); color: var(--text);
+            min-height: 100vh; line-height: 1.6;
+        }
+        .navbar {
+            background: var(--card-bg); border-bottom: 1px solid var(--border);
+            padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
+            height: 60px; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow);
+        }
+        .navbar .logo { font-size: 1.4em; font-weight: 700; cursor: pointer; }
+        .nav-tabs { display: flex; gap: 4px; background: var(--warm-cream); border-radius: 24px; padding: 4px; }
+        .nav-tab {
+            padding: 8px 18px; border-radius: 20px; cursor: pointer; font-weight: 600;
+            border: none; background: transparent; color: var(--text-light);
+        }
+        .nav-tab.active { background: #fff; color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .btn {
+            padding: 9px 16px; border-radius: 20px; border: none; cursor: pointer;
+            font-weight: 600; font-size: 0.88em; transition: var(--transition);
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .btn-primary { background: var(--accent); color: #5D4E37; }
+        .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text-light); }
+        .btn-sm { padding: 5px 12px; font-size: 0.78em; border-radius: 14px; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(80,60,40,0.45);
+            display: flex; align-items: center; justify-content: center; z-index: 200;
+        }
+        .modal {
+            background: var(--card-bg); border-radius: var(--radius); padding: 24px;
+            width: 90%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+        }
+        .modal input, .modal select {
+            width: 100%; padding: 9px 12px; border-radius: var(--radius-sm);
+            border: 1px solid var(--border); font-family: var(--font); font-size: 0.88em;
+        }
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            padding: 10px 22px; border-radius: 24px; font-weight: 600; z-index: 999;
+        }
+        .toast-success { background: #E8F5E9; color: #2E7D32; }
+        .toast-error { background: #FDE8E5; color: #C0392B; }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="logo">🌾 <span>谷子仓库</span></div>
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchMode('personal')">🏠 个人版</button>
+        <button class="nav-tab" onclick="switchMode('group')">👥 开团版</button>
+    </div>
+    <div>
+        <button class="btn btn-primary" id="btnLogin" onclick="openLoginModal()">🔑 登录</button>
+        <button class="btn btn-outline btn-sm" id="btnLogout" style="display:none" onclick="logout()">退出</button>
+        <span id="userInfo"></span>
+    </div>
+</nav>
+
+<div style="max-width:1200px;margin:20px auto;padding:20px;">
+    <div id="waterfallContainer"></div>
+    <div id="emptyState" style="display:none;text-align:center;padding:60px;">📭 还没有谷子哦~</div>
+</div>
+
+<div id="modalContainer"></div>
+<div id="toastContainer"></div>
+
+<script>
+const API_BASE = 'https://gu-cang.onrender.com/api';
+const state = {
+    mode: 'personal',
+    currentUser: null,
+    currentGroupId: null,
+    groups: [],
+    guziList: [],
+    personalGuzi: []
+};
+
+function $(id) { return document.getElementById(id); }
+function showToast(msg, type='success') {
+    const c = $('toastContainer');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`; t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 2500);
+}
+
+function loadPersonalGuzi() {
+    try { state.personalGuzi = JSON.parse(localStorage.getItem('guzi_personal')||'[]'); } catch(e) {}
+}
+function savePersonalGuzi() { localStorage.setItem('guzi_personal', JSON.stringify(state.personalGuzi)); }
+
+async function apiCall(path, method='GET', body=null) {
+    const headers = {'Content-Type':'application/json'};
+    const token = localStorage.getItem('guzi_token');
+    if(token) headers['Authorization'] = `Bearer ${token}`;
+    const opts = {method, headers};
+    if(body) opts.body = JSON.stringify(body);
+    const res = await fetch(`${API_BASE}${path}`, opts);
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error||'请求失败');
+    return data;
+}
+
+async function apiLogin(qq, cn) {
+    const data = await apiCall('/auth/login','POST',{qq,cn});
+    localStorage.setItem('guzi_token', data.token);
+    state.currentUser = data.user;
+}
+async function apiCreateGroup(name) {
+    return await apiCall('/groups','POST',{name});
+}
+async function apiLoadGroups() {
+    const data = await apiCall('/groups');
+    state.groups = data.groups||[];
+}
+
+function switchMode(mode) {
+    state.mode = mode;
+    if(mode === 'personal') {
+        $('btnLogin').style.display = ''; $('btnLogout').style.display = 'none';
+        loadPersonalGuzi();
+        renderGuziList(state.personalGuzi);
+    } else {
+        if(state.currentUser) {
+            $('btnLogin').style.display = 'none'; $('btnLogout').style.display = '';
+            if(state.currentGroupId) loadGroupGuzi();
+        } else {
+            openLoginModal();
+        }
+    }
+}
+
+function openLoginModal() {
+    const html = `
+    <div class="modal-overlay" id="loginOverlay" onclick="if(event.target===this)closeModal('loginOverlay')">
+      <div class="modal">
+        <h3>🔑 登录开团版</h3>
+        <div><label>QQ号（账号）</label><input id="loginQQ" placeholder="输入你的QQ号"></div>
+        <div><label>圈名 / CN（昵称）</label><input id="loginCN" placeholder="例如：小明"></div>
+        <div><label>选择团</label><select id="loginGroupSelect"><option value="">--选择团--</option></select></div>
+        <button class="btn btn-primary" onclick="doLogin()">登录</button>
+        <button class="btn btn-outline btn-sm" onclick="openCreateGroupModal()">+ 创建新团</button>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('loginOverlay')">取消</button>
+      </div>
+    </div>`;
+    $('modalContainer').innerHTML = html;
+    apiLoadGroups().then(() => {
+        const sel = $('loginGroupSelect');
+        sel.innerHTML = '<option value="">--选择团--</option>' + state.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+    });
+}
+
+function openCreateGroupModal() {
+    $('modalContainer').innerHTML = `
+    <div class="modal-overlay" id="createGrpOverlay" onclick="if(event.target===this)closeModal('createGrpOverlay')">
+      <div class="modal">
+        <h3>🌟 创建新团</h3>
+        <div><label>团名称</label><input id="newGroupName" placeholder="例如：原神谷子团"></div>
+        <div><label>您的QQ号（账号）</label><input id="newGroupQQ" placeholder="输入你的QQ号"></div>
+        <div><label>您的圈名 / CN（昵称）</label><input id="newGroupCN" placeholder="例如：小明"></div>
+        <button class="btn btn-primary" onclick="doCreateGroup()">创建</button>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('createGrpOverlay')">取消</button>
+      </div>
+    </div>`;
+}
+
+async function doLogin() {
+    const qq = $('loginQQ')?.value.trim();
+    const cn = $('loginCN')?.value.trim();
+    const gid = $('loginGroupSelect')?.value;
+    if(!qq||!cn||!gid) { showToast('请填写完整','error'); return; }
+    try {
+        await apiLogin(qq, cn);
+        state.currentGroupId = parseInt(gid);
+        await apiLoadGroups();
+        updateUI();
+        await loadGroupGuzi();
+        closeModal('loginOverlay');
+        showToast('登录成功！');
+    } catch(e) { showToast('登录失败：'+e.message,'error'); }
+}
+
+async function doCreateGroup() {
+    const name = $('newGroupName')?.value.trim();
+    const qq = $('newGroupQQ')?.value.trim();
+    const cn = $('newGroupCN')?.value.trim();
+    if(!name||!qq||!cn) { showToast('请填写完整','error'); return; }
+    try {
+        // 修正：先登录，再创建团
+        await apiLogin(qq, cn);
+        const r = await apiCreateGroup(name);
+        state.currentGroupId = r.group.id;
+        await apiLoadGroups();
+        updateUI();
+        await loadGroupGuzi();
+        closeModal('createGrpOverlay');
+        // 关闭可能存在的登录弹窗
+        if($('loginOverlay')) closeModal('loginOverlay');
+        showToast('团创建成功！');
+    } catch(e) { showToast('创建失败：'+e.message,'error'); }
+}
+
+function logout() {
+    localStorage.removeItem('guzi_token');
+    state.currentUser = null;
+    state.currentGroupId = null;
+    state.guziList = [];
+    $('btnLogin').style.display = '';
+    $('btnLogout').style.display = 'none';
+    $('userInfo').textContent = '';
+    showToast('已退出');
+}
+
+function updateUI() {
+    if(state.currentUser) {
+        $('userInfo').textContent = `👤 ${state.currentUser.cn}`;
+        $('btnLogin').style.display = 'none';
+        $('btnLogout').style.display = '';
+    }
+}
+
+async function loadGroupGuzi() {
+    if(!state.currentGroupId) return;
+    try {
+        const data = await apiCall(`/groups/${state.currentGroupId}/guzi`);
+        state.guziList = data.guzi||[];
+        renderGuziList(state.guziList);
+    } catch(e) { showToast('加载失败','error'); }
+}
+
+function renderGuziList(list) {
+    const container = $('waterfallContainer');
+    if(!list || list.length === 0) {
+        container.innerHTML = '';
+        $('emptyState').style.display = 'block';
+        return;
+    }
+    $('emptyState').style.display = 'none';
+    container.innerHTML = list.map(g => `<div class="guzi-card">👤 ${g.cn} | ${g.ip} - ${g.character||''} | ${g.type} x${g.quantity}</div>`).join('');
+}
+
+function closeModal(id) { const el = $(id); if(el) el.remove(); }
+
+// 初始化
+loadPersonalGuzi();
+switchMode('personal');
+</script>
+</body>
+</html>
