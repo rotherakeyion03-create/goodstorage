@@ -6,17 +6,10 @@
     <title>🌾 谷子仓库</title>
     <style>
         :root {
-            --bg: #FFF8EC;
-            --card-bg: #FFFDF7;
-            --warm-cream: #FFF3D6;
-            --text: #5D4E37;
-            --text-light: #8B7355;
-            --accent: #E8C97A;
-            --danger: #E07B6C;
-            --success: #7BA87F;
-            --border: #E8D5B7;
-            --shadow: 0 2px 12px rgba(139,115,85,0.1);
-            --radius: 14px;
+            --bg: #FFF8EC; --card-bg: #FFFDF7; --warm-cream: #FFF3D6;
+            --text: #5D4E37; --text-light: #8B7355; --accent: #E8C97A;
+            --danger: #E07B6C; --success: #7BA87F; --border: #E8D5B7;
+            --shadow: 0 2px 12px rgba(139,115,85,0.1); --radius: 14px;
         }
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
@@ -90,17 +83,10 @@
         <h4>🔍 搜索</h4>
         <input type="text" id="searchInput" placeholder="搜索关键词..." oninput="applyFilters()">
         <h4>📂 展示模式</h4>
-        <select id="displayMode" onchange="applyFilters()">
-            <option value="all">共同展示</option>
-            <option value="by-ip">按IP分类</option>
-            <option value="by-type">按种类分类</option>
-        </select>
-        <h4>📋 IP筛选</h4>
-        <div class="filter-group" id="ipFilters"></div>
-        <h4>🎭 角色筛选</h4>
-        <div class="filter-group" id="charFilters"></div>
-        <h4>🏷️ 制品种类</h4>
-        <div class="filter-group" id="typeFilters"></div>
+        <select id="displayMode" onchange="applyFilters()"><option value="all">共同展示</option><option value="by-ip">按IP分类</option><option value="by-type">按种类分类</option></select>
+        <h4>📋 IP筛选</h4><div class="filter-group" id="ipFilters"></div>
+        <h4>🎭 角色筛选</h4><div class="filter-group" id="charFilters"></div>
+        <h4>🏷️ 制品种类</h4><div class="filter-group" id="typeFilters"></div>
         <h4>📌 状态</h4>
         <div class="filter-group" id="statusFilters">
             <span class="filter-chip active" data-status="all" onclick="setStatus('all',this)">全部</span>
@@ -109,8 +95,7 @@
             <span class="filter-chip" data-status="运输中" onclick="setStatus('运输中',this)">运输中</span>
             <span class="filter-chip" data-status="囤货中" onclick="setStatus('囤货中',this)">囤货中</span>
         </div>
-        <h4>📊 统计</h4>
-        <div id="stats" style="font-size:0.9em"></div>
+        <h4>📊 统计</h4><div id="stats" style="font-size:0.9em"></div>
         <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px" onclick="clearFilters()">🔄 清除所有筛选</button>
     </aside>
     <div class="content-area">
@@ -122,10 +107,7 @@
 <div class="ai-panel collapsed" id="aiPanel">
     <div class="ai-header" onclick="toggleAI()">🤖 AI 谷子导入助手 <span id="aiIcon">▲</span></div>
     <div class="ai-messages" id="aiMsgs"><div class="ai-msg bot">描述谷子信息，如"CN小明 原神 钟离 吧唧 A柄 2个 45元 已下单 未交本体"</div></div>
-    <div class="ai-input-row">
-        <input id="aiInput" placeholder="描述谷子信息..." onkeydown="if(event.key==='Enter')sendAI()">
-        <button class="btn btn-primary btn-sm" onclick="sendAI()">发送</button>
-    </div>
+    <div class="ai-input-row"><input id="aiInput" placeholder="描述谷子信息..." onkeydown="if(event.key==='Enter')sendAI()"><button class="btn btn-primary btn-sm" onclick="sendAI()">发送</button></div>
 </div>
 
 <input type="file" id="excelInput" accept=".csv,.xlsx" hidden onchange="handleExcel(event)">
@@ -155,34 +137,19 @@ async function api(path,method='GET',body=null){
     const token=localStorage.getItem('token');
     if(token)headers['Authorization']='Bearer '+token;
     const res=await fetch(API+path,{method,headers,body:body?JSON.stringify(body):null});
-    if(!res.ok){
-        const text = await res.text();
-        throw new Error(text || '请求失败');
-    }
+    if(!res.ok){const text=await res.text();throw new Error(text||'请求失败')}
     return res.json();
 }
 
-async function login(qq,cn){
-    const d=await api('/auth/login','POST',{qq,cn});
-    localStorage.setItem('token',d.token);
-    STATE.user = d.user;
-    await loadGroups();
-}
+async function login(qq,cn){const d=await api('/auth/login','POST',{qq,cn});localStorage.setItem('token',d.token);STATE.user=d.user;await loadGroups()}
 async function loadGroups(){const d=await api('/groups');STATE.groups=d.groups||[]}
-function logout(){
-    localStorage.removeItem('token');
-    STATE.user=null; STATE.groupId=null; STATE.list=[];
-    updateUI(); switchMode('personal'); toast('已退出');
-}
-async function loadGroupGuzi(){
-    if(!STATE.groupId)return;
-    const d=await api(`/groups/${STATE.groupId}/guzi`);
-    STATE.list=d.guzi||[];
-}
+function logout(){localStorage.removeItem('token');STATE.user=null;STATE.groupId=null;updateUI();switchMode('personal');toast('已退出')}
+async function loadGroupGuzi(){if(!STATE.groupId)return;const d=await api(`/groups/${STATE.groupId}/guzi`);STATE.list=d.guzi||[]}
 
+// 修复类型比较
 function getCurrentRole(){
     if(!STATE.user||!STATE.groupId) return null;
-    const member = STATE.user.groups?.find(g => g.group_id == STATE.groupId);
+    const member = STATE.user.groups?.find(g => String(g.group_id) === String(STATE.groupId));
     return member ? member.role : null;
 }
 
@@ -190,44 +157,24 @@ function switchMode(mode){
     STATE.mode=mode;
     document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
     document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
-    if(mode==='personal'){
-        STATE.groupId=null;
-        STATE.list=[...STATE.personal];
-    }else{
-        if(!STATE.user){openLogin();return}
-        if(STATE.groupId)loadGroupGuzi().then(()=>{applyFilters();updateStats()});
-    }
+    if(mode==='personal'){STATE.groupId=null;STATE.list=[...STATE.personal]}
+    else{if(!STATE.user){openLogin();return}if(STATE.groupId)loadGroupGuzi().then(()=>{applyFilters();updateStats()})}
     applyFilters();updateStats();updateChips();
 }
 
 function updateUI(){
     if(STATE.user){
-        $('btnLogin').style.display='none';
-        $('btnLogout').style.display='';
-        $('btnMsg').style.display='';
-        const role = getCurrentRole();
-        if(role==='leader'||role==='admin'){
-            $('btnManage').style.display='';
-        } else {
-            $('btnManage').style.display='none';
-        }
+        $('btnLogin').style.display='none';$('btnLogout').style.display='';$('btnMsg').style.display='';
+        const role=getCurrentRole();
+        if(role==='leader'||role==='admin'){$('btnManage').style.display=''}else{$('btnManage').style.display='none'}
         $('userInfo').textContent=`👤 ${STATE.user.cn} [${role||'团员'}]`;
-        if(STATE.groupId){
-            const g=STATE.groups.find(gr=>gr.id==STATE.groupId);
-            $('groupBadge').style.display='';
-            $('groupBadge').textContent=g?`📦 ${g.name}`:'';
-        }
-    } else {
-        $('btnLogin').style.display='';
-        $('btnLogout').style.display='none';
-        $('btnManage').style.display='none';
-        $('btnMsg').style.display='none';
-        $('userInfo').textContent='';
-        $('groupBadge').style.display='none';
+        if(STATE.groupId){const g=STATE.groups.find(gr=>gr.id==STATE.groupId);$('groupBadge').style.display='';$('groupBadge').textContent=g?`📦 ${g.name}`:''}
+    }else{
+        $('btnLogin').style.display='';$('btnLogout').style.display='none';$('btnManage').style.display='none';$('btnMsg').style.display='none';
+        $('userInfo').textContent='';$('groupBadge').style.display='none';
     }
 }
 
-// ========== 登录/创建团 ==========
 function openLogin(){
     $('modalContainer').innerHTML=`
     <div class="modal-overlay" id="loginOverlay"><div class="modal" style="max-width:400px"><h3>🔑 登录开团版</h3>
@@ -237,23 +184,12 @@ function openLogin(){
     <button class="btn btn-primary" onclick="doLogin()">登录</button>
     <button class="btn btn-outline btn-sm" onclick="createGroupModal()">+ 创建新团</button>
     <button class="btn btn-outline btn-sm" onclick="closeModal('loginOverlay')">取消</button></div></div>`;
-    loadGroups().then(()=>{
-        const sel=$('loginGroup');
-        sel.innerHTML='<option value="">--选择团--</option>'+STATE.groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
-    });
+    loadGroups().then(()=>{const sel=$('loginGroup');sel.innerHTML='<option value="">--选择团--</option>'+STATE.groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('')});
 }
 async function doLogin(){
     const qq=$('loginQQ')?.value.trim(),cn=$('loginCN')?.value.trim(),gid=$('loginGroup')?.value;
     if(!qq||!cn||!gid)return toast('请填写完整',false);
-    try{
-        await login(qq,cn);
-        STATE.groupId=parseInt(gid);
-        await loadGroupGuzi();
-        updateUI();
-        switchMode('group');
-        closeModal('loginOverlay');
-        toast('登录成功');
-    }catch(e){toast(e.message,false)}
+    try{await login(qq,cn);STATE.groupId=parseInt(gid);await loadGroupGuzi();updateUI();switchMode('group');closeModal('loginOverlay');toast('登录成功')}catch(e){toast(e.message,false)}
 }
 function createGroupModal(){
     $('modalContainer').innerHTML=`
@@ -268,19 +204,18 @@ async function doCreateGroup(){
     const name=$('newName')?.value.trim(),qq=$('newQQ')?.value.trim(),cn=$('newCN')?.value.trim();
     if(!name||!qq||!cn)return toast('请填写完整',false);
     try{
-        await login(qq,cn);                     // 登录获取token
-        const d = await api('/groups','POST',{name});  // 创建团
-        STATE.groupId = d.group.id;
-        // 手动添加leader角色到user.groups，无需重新请求/auth/me
-        if (!STATE.user.groups) STATE.user.groups = [];
-        STATE.user.groups.push({ group_id: STATE.groupId, role: 'leader' });
-        await loadGroups();                     // 刷新团列表
-        await loadGroupGuzi();                  // 加载当前团谷子（空）
+        await login(qq,cn);
+        const d=await api('/groups','POST',{name});
+        STATE.groupId=Number(d.group.id);   // 确保数字
+        if(!STATE.user.groups) STATE.user.groups=[];
+        STATE.user.groups.push({group_id:STATE.groupId,role:'leader'});
+        await loadGroups();
+        await loadGroupGuzi();
         updateUI();
         switchMode('group');
         closeModal('createOverlay');
         if($('loginOverlay'))closeModal('loginOverlay');
-        toast('团创建成功！您现在是团长');
+        toast('团创建成功！您是团长');
     }catch(e){toast(e.message,false)}
 }
 
