@@ -346,9 +346,168 @@ function openGuziModal(guzi=null){
       <button class="btn btn-primary" onclick="saveGuzi()">保存</button>
     </div></div></div>`;
 }
-// …（剩余函数与之前相同，此处省略 saveGuzi、deleteGuzi 等，直接使用之前已提供的完整代码）
-// 为节省篇幅，请直接复制上方完整 HTML 代码中的 JavaScript 后续部分（从 saveGuzi 到 init 结束）。
-// 实际部署时请使用本回复开头的完整代码，已经包含所有功能。
+async function saveGuzi(){
+    const guzi={
+        cn:$('gCN').value.trim(),ip:$('gIP').value.trim(),character:$('gChar').value.trim(),
+        type:$('gType').value.trim(),artwork:$('gArtwork').value.trim(),
+        quantity:parseInt($('gQty').value)||1,price:parseFloat($('gPrice').value)||0,
+        status:$('gStatus').value,payment_status:$('gPayStatus').value,
+        payment_date:$('gPayDate').value||null,added_date:$('gAddedDate').value,
+        storage:$('gStorage').value.trim(),notes:$('gNotes').value.trim()
+    };
+    if(!guzi.cn||!guzi.ip)return toast('请填写圈名和IP',false);
+    const editId=$('gEditId').value;
+    if(STATE.mode==='personal'){
+        if(editId){const idx=STATE.personal.findIndex(g=>g.id===editId);if(idx>=0)STATE.personal[idx]={...STATE.personal[idx],...guzi,id:editId}}
+        else{guzi.id='p_'+Date.now();STATE.personal.push(guzi)}
+        localStorage.setItem('guzi_personal',JSON.stringify(STATE.personal));STATE.list=[...STATE.personal];
+    }else{
+        try{
+            if(editId)await api(`/groups/${STATE.groupId}/guzi/${editId}`,'PUT',guzi);
+            else await api(`/groups/${STATE.groupId}/guzi`,'POST',guzi);
+            await loadGroupGuzi();
+        }catch(e){return toast(e.message,false)}
+    }
+    closeModal('guziOverlay');applyFilters();updateStats();updateChips();toast('保存成功');
+}
+async function deleteGuzi(){
+    if(!confirm('确定删除？'))return;
+    const id=$('gEditId').value;
+    if(STATE.mode==='personal'){STATE.personal=STATE.personal.filter(g=>g.id!==id);localStorage.setItem('guzi_personal',JSON.stringify(STATE.personal));STATE.list=[...STATE.personal]}
+    else{try{await api(`/groups/${STATE.groupId}/guzi/${id}`,'DELETE');await loadGroupGuzi()}catch(e){return toast(e.message,false)}}
+    closeModal('guziOverlay');applyFilters();updateStats();updateChips();toast('已删除');
+}
+function closeModal(id){const el=$(id);if(el)el.remove()}
+
+function setStatus(s,el){
+    document.querySelectorAll('#statusFilters .filter-chip').forEach(c=>c.classList.remove('active'));
+    el.classList.add('active');STATE.filters.status=s;applyFilters();
+}
+function clearFilters(){
+    STATE.filters={search:'',ip:'all',char:'all',type:'all',status:'all',display:'all'};
+    $('searchInput').value='';$('displayMode').value='all';
+    document.querySelectorAll('#statusFilters .filter-chip').forEach(c=>c.classList.remove('active'));
+    document.querySelector('#statusFilters [data-status="all"]')?.classList.add('active');
+    applyFilters();updateChips();
+}
+function applyFilters(){
+    let list=STATE.mode==='personal'?[...STATE.personal]:[...STATE.list];
+    const s=$('searchInput')?.value?.toLowerCase()||'';
+    if(s) list=list.filter(g=>Object.values(g).some(v=>String(v).toLowerCase().includes(s)));
+    if(STATE.filters.status!=='all') list=list.filter(g=>g.status===STATE.filters.status);
+    if(STATE.filters.ip!=='all') list=list.filter(g=>g.ip===STATE.filters.ip);
+    if(STATE.filters.char!=='all') list=list.filter(g=>g.character===STATE.filters.char);
+    if(STATE.filters.type!=='all') list=list.filter(g=>g.type===STATE.filters.type);
+    renderWaterfall(list);updateStats(list);
+}
+function renderWaterfall(list){
+    const mode=$('displayMode').value;let html='';
+    if(mode==='by-ip'){
+        const grp={};list.forEach(g=>{const k=g.ip||'未知';if(!grp[k])grp[k]=[];grp[k].push(g)});
+        for(const[k,gs]of Object.entries(grp))html+=`<div style="column-span:all;margin:12px 0;font-weight:700">🎯 ${k}</div>`+gs.map(card).join('');
+    }else if(mode==='by-type'){
+        const grp={};list.forEach(g=>{const k=g.type||'未知';if(!grp[k])grp[k]=[];grp[k].push(g)});
+        for(const[k,gs]of Object.entries(grp))html+=`<div style="column-span:all;margin:12px 0;font-weight:700">🏷️ ${k}</div>`+gs.map(card).join('');
+    }else html=list.map(card).join('');
+    $('waterfall').innerHTML=html;$('empty').style.display=list.length?'none':'block';
+}
+function card(g){
+    const statusColors={'已下单':'badge-blue','未出荷':'badge-gray','运输中':'badge-orange','囤货中':'badge-green'};
+    const payLabels={'未交本体':'🔴未交本体','已交本体':'🟢已交本体','未交国际':'🟠未交国际','已交国际':'🔵已交国际'};
+    return `<div class="guzi-card" onclick="openGuziModal(${JSON.stringify(g).replace(/"/g,'&quot;')})">
+      <div style="display:flex;justify-content:space-between"><span style="font-weight:700">👤 ${g.cn}</span><span class="badge ${statusColors[g.status]||'badge-gray'}">${g.status}</span></div>
+      <div>🎯 ${g.ip} ${g.character?`· ${g.character}`:''}</div>
+      <div>🏷️ ${g.type||'?'} ${g.artwork?`· 柄图:${g.artwork}`:''} x${g.quantity} ¥${g.price}</div>
+      <div>💰 ${payLabels[g.payment_status]||g.payment_status}</div>
+      ${g.storage?`<div>📍 ${g.storage}</div>`:''}
+      <div style="font-size:0.75em;color:var(--text-light)">📅 ${fmtDate(g.added_date)}</div>
+    </div>`;
+}
+function updateStats(list){$('stats').innerHTML=`总计: <strong>${list.length}</strong>`}
+function updateChips(){
+    const all=STATE.mode==='personal'?STATE.personal:STATE.list;
+    const ips=[...new Set(all.map(g=>g.ip).filter(Boolean))];
+    $('ipFilters').innerHTML='<span class="filter-chip active" data-ip="all" onclick="setChip(\'ip\',\'all\',this)">全部IP</span>'+ips.map(ip=>`<span class="filter-chip" data-ip="${ip}" onclick="setChip('ip','${ip}',this)">${ip}</span>`).join('');
+    const chars=[...new Set(all.map(g=>g.character).filter(Boolean))];
+    $('charFilters').innerHTML='<span class="filter-chip active" data-char="all" onclick="setChip(\'char\',\'all\',this)">全部角色</span>'+chars.map(c=>`<span class="filter-chip" data-char="${c}" onclick="setChip('char','${c}',this)">${c}</span>`).join('');
+    const types=[...new Set(all.map(g=>g.type).filter(Boolean))];
+    $('typeFilters').innerHTML='<span class="filter-chip active" data-type="all" onclick="setChip(\'type\',\'all\',this)">全部种类</span>'+types.map(t=>`<span class="filter-chip" data-type="${t}" onclick="setChip('type','${t}',this)">${t}</span>`).join('');
+}
+function setChip(cat,val,el){
+    const map={ip:'ipFilters',char:'charFilters',type:'typeFilters'};
+    document.querySelectorAll(`#${map[cat]} .filter-chip`).forEach(c=>c.classList.remove('active'));
+    el.classList.add('active');STATE.filters[cat]=val;applyFilters();
+}
+
+// AI 优化识别
+function toggleAI(){$('aiPanel').classList.toggle('collapsed');$('aiIcon').textContent=$('aiPanel').classList.contains('collapsed')?'▲':'▼'}
+function sendAI(){
+    const msg=$('aiInput').value.trim();if(!msg)return;
+    $('aiMsgs').innerHTML+=`<div class="ai-msg user">${msg}</div>`;
+    const parsed=parseAI(msg);
+    if(parsed){
+        STATE.aiPending=parsed;
+        $('aiMsgs').innerHTML+=`<div class="ai-msg bot">✅ 识别：${parsed.cn} ${parsed.ip} ${parsed.character} ${parsed.type} ${parsed.artwork||''} x${parsed.quantity}<br>状态:${parsed.status} 交肾:${parsed.payment_status}<br><button class="btn btn-primary btn-sm" onclick="confirmAI()">确认导入</button></div>`;
+    }else{
+        $('aiMsgs').innerHTML+=`<div class="ai-msg bot">未能识别，请重试</div>`;
+    }
+    $('aiInput').value='';$('aiMsgs').scrollTop=$('aiMsgs').scrollHeight;
+}
+function parseAI(text){
+    const r={cn:'',ip:'',character:'',type:'吧唧',artwork:'',quantity:1,price:0,status:'已下单',payment_status:'未交本体',payment_date:'',added_date:new Date().toISOString().split('T')[0],storage:'',notes:''};
+    const cnM=text.match(/CN\s*[:：]?\s*(\S+)/i)||text.match(/^(\S{1,6})[\s，,]/);if(cnM)r.cn=cnM[1];
+    const ipM=text.match(/(原神|明日方舟|崩坏|星穹铁道|光与夜|恋与|王者荣耀|阴阳师|FGO|碧蓝航线|少女前线|咒术回战|鬼灭之刃|进击的巨人|间谍过家家|孤独摇滚|蓝色监狱|排球少年|文豪野犬|柯南|海贼王|火影忍者|死神|银魂|赛马娘|公主连结|未定事件簿|恋与深空|绝区零|鸣潮|无限暖暖|闪耀暖暖)/i);if(ipM)r.ip=ipM[0];
+    const chM=text.match(/(钟离|达达利亚|散兵|万叶|神里绫华|雷电将军|纳西妲|芙宁娜|那维莱特|艾尔海森|卡维|提纳里|赛诺|妮露|迪希雅|流浪者|林尼|琳妮特|菲米尼|阿蕾奇诺|克洛琳德|希格雯|荧|空|派蒙|温迪|琴|迪卢克|可莉|七七|刻晴|甘雨|魈|胡桃|优菈|神里绫人|八重神子|夜兰|白术)/i);if(chM)r.character=chM[0];
+    const typeM=text.match(/(吧唧|立牌|挂件|色纸|海报|明信片|亚克力砖|亚克力|毛绒|抱枕)/i);if(typeM)r.type=typeM[1];else if(text.match(/种类[:：]\s*(\S+)/)) r.type=text.match(/种类[:：]\s*(\S+)/)[1];
+    const artM=text.match(/(?:柄图|图案)[:：]?\s*(\S+)/i)||text.match(/([ABCD]柄|原画柄|Q版柄)/i);if(artM)r.artwork=artM[1];
+    const qM=text.match(/(\d+)\s*(个|枚|张|件|只)/);if(qM)r.quantity=parseInt(qM[1]);
+    const pM=text.match(/(\d+(?:\.\d+)?)\s*(元|块|r|¥)/i);if(pM)r.price=parseFloat(pM[1]);
+    const statusM=text.match(/(已下单|未出荷|运输中|囤货中)/);if(statusM)r.status=statusM[1];
+    const payM=text.match(/(未交本体|已交本体|未交国际|已交国际)/);if(payM)r.payment_status=payM[1];
+    if(r.cn||r.ip)return r;
+    return null;
+}
+function confirmAI(){
+    if(!STATE.aiPending)return;
+    const d=STATE.aiPending;d.id='p_'+Date.now();
+    if(STATE.mode==='personal'){STATE.personal.push(d);localStorage.setItem('guzi_personal',JSON.stringify(STATE.personal));STATE.list=[...STATE.personal]}
+    else api(`/groups/${STATE.groupId}/guzi`,'POST',d).then(()=>loadGroupGuzi());
+    STATE.aiPending=null;applyFilters();updateStats();updateChips();toast('导入成功');
+}
+
+function handleExcel(e){
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+        const lines=ev.target.result.split('\n').filter(l=>l.trim());
+        if(lines.length<2)return toast('文件内容不足',false);
+        let cnt=0;
+        for(let i=1;i<lines.length;i++){
+            const cols=lines[i].split(/[,\t]/);if(cols.length<3)continue;
+            const g={cn:cols[0]?.trim()||'',ip:cols[1]?.trim()||'',character:cols[2]?.trim()||'',type:cols[3]?.trim()||'吧唧',artwork:cols[4]?.trim()||'',quantity:parseInt(cols[5])||1,price:parseFloat(cols[6])||0,status:cols[7]?.trim()||'已下单',payment_status:cols[8]?.trim()||'未交本体',added_date:new Date().toISOString().split('T')[0],storage:cols[9]?.trim()||'',notes:cols[10]?.trim()||'',id:'p_'+Date.now()+'_'+i};
+            if(!g.cn&&!g.ip)continue;
+            if(STATE.mode==='personal')STATE.personal.push(g);
+            else api(`/groups/${STATE.groupId}/guzi`,'POST',g);
+            cnt++;
+        }
+        if(STATE.mode==='personal'){localStorage.setItem('guzi_personal',JSON.stringify(STATE.personal));STATE.list=[...STATE.personal]}
+        else setTimeout(()=>loadGroupGuzi().then(()=>{applyFilters();updateStats();updateChips()}),1500);
+        applyFilters();updateStats();updateChips();toast(`导入 ${cnt} 条`);
+    };
+    reader.readAsText(file);e.target.value='';
+}
+
+async function init(){
+    STATE.list=[...STATE.personal];
+    const token=localStorage.getItem('token');
+    if(token){
+        try{const d=await api('/auth/me');STATE.user=d.user;STATE.groupId=d.user.groupId||null;await loadGroups();if(STATE.groupId)await loadGroupGuzi();updateUI()}catch(e){localStorage.removeItem('token')}
+    }
+    switchMode('personal');
+}
+init();
 </script>
+</body>
+</html>
 </body>
 </html>
