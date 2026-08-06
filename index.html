@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌾 谷子仓库 - 温馨管理你的宝贝</title>
+    <title>🌾 谷子仓库</title>
     <style>
         :root {
             --bg: #FFF8EC;
@@ -150,6 +149,8 @@ const STATE = {
 function $(id){return document.getElementById(id)}
 function toast(msg,ok=true){const d=document.createElement('div');d.className=`toast ${ok?'toast-success':'toast-error'}`;d.textContent=msg;$('toastContainer').appendChild(d);setTimeout(()=>d.remove(),2500)}
 function fmtDate(d){if(!d)return'';const dt=new Date(d);return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`}
+function daysBetween(d1,d2){return Math.floor((new Date(d2)-new Date(d1))/86400000)}
+function firstOfMonth(d){const dt=new Date(d);return new Date(dt.getFullYear(),dt.getMonth(),1)}
 
 async function api(path,method='GET',body=null){
     const headers={'Content-Type':'application/json'};
@@ -164,13 +165,13 @@ async function api(path,method='GET',body=null){
 async function login(qq,cn){
     const d=await api('/auth/login','POST',{qq,cn});
     localStorage.setItem('token',d.token);
-    STATE.user = d.user;  // user 包含 groups 数组
+    STATE.user = d.user;
     await loadGroups();
 }
 async function loadGroups(){const d=await api('/groups');STATE.groups=d.groups||[]}
 function logout(){
     localStorage.removeItem('token');
-    STATE.user=null; STATE.groupId=null;
+    STATE.user=null; STATE.groupId=null; STATE.list=[];
     updateUI(); switchMode('personal'); toast('已退出');
 }
 async function loadGroupGuzi(){
@@ -179,7 +180,6 @@ async function loadGroupGuzi(){
     STATE.list=d.guzi||[];
 }
 
-// 获取当前团内的角色
 function getCurrentRole(){
     if(!STATE.user||!STATE.groupId) return null;
     const member = STATE.user.groups?.find(g => g.group_id === STATE.groupId);
@@ -271,9 +271,7 @@ async function doCreateGroup(){
         await login(qq,cn); // 先登录，获取 token
         const d = await api('/groups','POST',{name}); // 创建团
         STATE.groupId = d.group.id;
-        // 重新加载 groups 和用户信息，确保 groups 数组包含新角色
         await loadGroups();
-        // 重新获取用户信息以更新 groups（也可直接修改）
         const meData = await api('/auth/me');
         STATE.user = meData.user;
         await loadGroupGuzi();
@@ -373,12 +371,15 @@ async function saveGuzi(){
 async function deleteGuzi(){
     if(!confirm('确定删除？'))return;
     const id=$('gEditId').value;
-    if(STATE.mode==='personal'){STATE.personal=STATE.personal.filter(g=>g.id!==id);localStorage.setItem('guzi_personal',JSON.stringify(STATE.personal));STATE.list=[...STATE.personal]}
-    else{try{await api(`/groups/${STATE.groupId}/guzi/${id}`,'DELETE');await loadGroupGuzi()}catch(e){return toast(e.message,false)}}
+    if(STATE.mode==='personal'){
+        STATE.personal=STATE.personal.filter(g=>g.id!==id);
+        localStorage.setItem('guzi_personal',JSON.stringify(STATE.personal));STATE.list=[...STATE.personal];
+    }else{try{await api(`/groups/${STATE.groupId}/guzi/${id}`,'DELETE');await loadGroupGuzi()}catch(e){return toast(e.message,false)}}
     closeModal('guziOverlay');applyFilters();updateStats();updateChips();toast('已删除');
 }
 function closeModal(id){const el=$(id);if(el)el.remove()}
 
+// ========== 筛选 ==========
 function setStatus(s,el){
     document.querySelectorAll('#statusFilters .filter-chip').forEach(c=>c.classList.remove('active'));
     el.classList.add('active');STATE.filters.status=s;applyFilters();
@@ -423,7 +424,7 @@ function card(g){
       <div style="font-size:0.75em;color:var(--text-light)">📅 ${fmtDate(g.added_date)}</div>
     </div>`;
 }
-function updateStats(list){$('stats').innerHTML=`总计: <strong>${list.length}</strong>`}
+function updateStats(list){const l=list||[];$('stats').innerHTML=`总计: <strong>${l.length}</strong>`}
 function updateChips(){
     const all=STATE.mode==='personal'?STATE.personal:STATE.list;
     const ips=[...new Set(all.map(g=>g.ip).filter(Boolean))];
@@ -439,7 +440,7 @@ function setChip(cat,val,el){
     el.classList.add('active');STATE.filters[cat]=val;applyFilters();
 }
 
-// AI 优化识别
+// ========== AI ==========
 function toggleAI(){$('aiPanel').classList.toggle('collapsed');$('aiIcon').textContent=$('aiPanel').classList.contains('collapsed')?'▲':'▼'}
 function sendAI(){
     const msg=$('aiInput').value.trim();if(!msg)return;
@@ -449,7 +450,7 @@ function sendAI(){
         STATE.aiPending=parsed;
         $('aiMsgs').innerHTML+=`<div class="ai-msg bot">✅ 识别：${parsed.cn} ${parsed.ip} ${parsed.character} ${parsed.type} ${parsed.artwork||''} x${parsed.quantity}<br>状态:${parsed.status} 交肾:${parsed.payment_status}<br><button class="btn btn-primary btn-sm" onclick="confirmAI()">确认导入</button></div>`;
     }else{
-        $('aiMsgs').innerHTML+=`<div class="ai-msg bot">未能识别，请重试</div>`;
+        $('aiMsgs').innerHTML+=`<div class="ai-msg bot">未能识别，请重试。例如：CN小明 原神 钟离 吧唧 A柄 2个 45元 已下单 未交本体</div>`;
     }
     $('aiInput').value='';$('aiMsgs').scrollTop=$('aiMsgs').scrollHeight;
 }
@@ -472,9 +473,10 @@ function confirmAI(){
     const d=STATE.aiPending;d.id='p_'+Date.now();
     if(STATE.mode==='personal'){STATE.personal.push(d);localStorage.setItem('guzi_personal',JSON.stringify(STATE.personal));STATE.list=[...STATE.personal]}
     else api(`/groups/${STATE.groupId}/guzi`,'POST',d).then(()=>loadGroupGuzi());
-    STATE.aiPending=null;applyFilters();updateStats();updateChips();toast('导入成功');
+    STATE.aiPending=null;applyFilters();updateStats();updateChips();toast('AI导入成功！');
 }
 
+// ========== Excel/图片 ==========
 function handleExcel(e){
     const file=e.target.files[0];if(!file)return;
     const reader=new FileReader();
@@ -496,18 +498,25 @@ function handleExcel(e){
     };
     reader.readAsText(file);e.target.value='';
 }
+function handleImage(e){toast('图片已接收（模拟识别），实际使用请接入OCR',false);openGuziModal();e.target.value=''}
 
+// ========== 初始化 ==========
 async function init(){
     STATE.list=[...STATE.personal];
     const token=localStorage.getItem('token');
     if(token){
-        try{const d=await api('/auth/me');STATE.user=d.user;STATE.groupId=d.user.groupId||null;await loadGroups();if(STATE.groupId)await loadGroupGuzi();updateUI()}catch(e){localStorage.removeItem('token')}
+        try{
+            const d=await api('/auth/me');
+            STATE.user=d.user;
+            STATE.groupId=d.user.groupId||null;
+            await loadGroups();
+            if(STATE.groupId)await loadGroupGuzi();
+            updateUI();
+        }catch(e){localStorage.removeItem('token')}
     }
     switchMode('personal');
 }
 init();
 </script>
-</body>
-</html>
 </body>
 </html>
