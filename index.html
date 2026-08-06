@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌾 谷子仓库</title>
+    <title>🌾 谷子仓库 - 温馨管理你的宝贝</title>
     <style>
         :root {
             --bg: #FFF8EC;
@@ -20,7 +20,7 @@
         }
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
-        .navbar{background:var(--card-bg);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+        .navbar{background:var(--card-bg);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow);flex-wrap:wrap}
         .nav-tabs{display:flex;gap:4px;background:var(--warm-cream);border-radius:24px;padding:4px}
         .nav-tab{padding:8px 18px;border-radius:20px;cursor:pointer;font-weight:600;border:none;background:transparent;color:var(--text-light)}
         .nav-tab.active{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.08)}
@@ -34,17 +34,34 @@
         .badge-gray{background:#F0F0F0;color:#666}
         .badge-orange{background:#FFF0D0;color:#B8860B}
         .badge-green{background:#E8F5E9;color:#2E7D32}
+        .main-container{display:flex;max-width:1500px;margin:0 auto;padding:16px}
+        .sidebar{width:280px;flex-shrink:0;background:var(--card-bg);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);position:sticky;top:76px;max-height:calc(100vh - 100px);overflow-y:auto;border:1px solid var(--border)}
+        .content-area{flex:1;margin-left:16px}
+        .filter-group{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}
+        .filter-chip{padding:5px 11px;border-radius:15px;cursor:pointer;font-size:0.78em;background:var(--warm-cream);border:1px solid transparent;user-select:none;color:var(--text-light)}
+        .filter-chip.active{background:var(--accent);color:#5D4E37;font-weight:600}
+        .waterfall{column-count:4;column-gap:14px}
+        @media(max-width:1300px){.waterfall{column-count:3}}
+        @media(max-width:960px){.waterfall{column-count:2}.sidebar{width:240px}}
+        @media(max-width:700px){.waterfall{column-count:1}.main-container{flex-direction:column}.sidebar{width:100%;position:static;margin-bottom:12px}.content-area{margin-left:0}}
+        .guzi-card{break-inside:avoid;margin-bottom:14px;background:var(--card-bg);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);border:1px solid var(--border);cursor:pointer;transition:0.2s;position:relative}
+        .guzi-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(139,115,85,0.16)}
         .modal-overlay{position:fixed;inset:0;background:rgba(80,60,40,0.45);z-index:200;display:flex;align-items:center;justify-content:center}
         .modal{background:var(--card-bg);border-radius:var(--radius);padding:24px;width:90%;max-width:620px;max-height:85vh;overflow-y:auto}
         .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
         .full-width{grid-column:1/-1}
         input,select,textarea{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border);font-family:inherit;font-size:0.88em}
-        .waterfall{column-count:4;column-gap:14px}
-        @media(max-width:1300px){.waterfall{column-count:3}}
-        @media(max-width:960px){.waterfall{column-count:2}}
-        @media(max-width:700px){.waterfall{column-count:1}}
-        .guzi-card{break-inside:avoid;margin-bottom:14px;background:var(--card-bg);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);border:1px solid var(--border);cursor:pointer;transition:0.2s;position:relative}
-        .guzi-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(139,115,85,0.16)}
+        .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);padding:10px 22px;border-radius:24px;font-weight:600;z-index:999}
+        .toast-success{background:#E8F5E9;color:#2E7D32}
+        .toast-error{background:#FDE8E5;color:#C0392B}
+        .ai-panel{position:fixed;bottom:20px;right:20px;width:380px;background:var(--card-bg);border-radius:var(--radius);box-shadow:0 12px 40px rgba(0,0,0,0.2);z-index:150;display:flex;flex-direction:column;border:1px solid var(--border)}
+        .ai-panel.collapsed{max-height:44px;overflow:hidden}
+        .ai-header{padding:10px 14px;cursor:pointer;font-weight:700;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
+        .ai-messages{flex:1;overflow-y:auto;padding:10px;font-size:0.82em;min-height:120px;max-height:300px}
+        .ai-input-row{display:flex;gap:6px;padding:10px;border-top:1px solid var(--border)}
+        .ai-msg{margin:4px 0;padding:8px 12px;border-radius:14px;max-width:85%}
+        .ai-msg.user{background:var(--warm-cream);margin-left:auto}
+        .ai-msg.bot{background:#fff;margin-right:auto;border:1px solid var(--border)}
     </style>
 </head>
 <body>
@@ -55,29 +72,36 @@
         <button class="nav-tab" data-mode="group" onclick="switchMode('group')">👥 开团版</button>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button class="btn btn-outline btn-sm" onclick="toggleAI()">🤖 AI</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleAI()">🤖 AI导入</button>
         <button class="btn btn-outline btn-sm" onclick="$('excelInput').click()">📊 Excel</button>
+        <button class="btn btn-outline btn-sm" onclick="$('imgInput').click()">📷 图片</button>
         <button class="btn btn-primary" onclick="openGuziModal()">+ 添加谷子</button>
-        <span id="groupBadge" style="display:none"></span>
-        <span id="userInfo"></span>
+        <span id="groupBadge" style="display:none;font-size:0.85em;color:var(--text-light)"></span>
+        <span id="userInfo" style="font-size:0.82em"></span>
         <button class="btn btn-outline btn-sm" id="btnLogin" onclick="openLogin()">🔑 登录</button>
         <button class="btn btn-outline btn-sm" id="btnLogout" style="display:none" onclick="logout()">退出</button>
-        <button class="btn btn-outline btn-sm" id="btnManage" style="display:none" onclick="openManage()">⚙️</button>
-        <button class="btn btn-outline btn-sm" id="btnMsg" style="display:none" onclick="openMsg()">💬</button>
+        <button class="btn btn-outline btn-sm" id="btnManage" style="display:none" onclick="openManage()">⚙️ 管理团</button>
+        <button class="btn btn-outline btn-sm" id="btnMsg" style="display:none" onclick="openMsg()">💬 留言</button>
     </div>
 </nav>
 
 <div class="main-container">
-    <aside class="sidebar" style="width:280px;background:var(--card-bg);padding:16px;border-radius:var(--radius);margin-right:16px;position:sticky;top:76px;max-height:calc(100vh - 100px);overflow-y:auto">
-        <input type="text" id="searchInput" placeholder="搜索..." oninput="applyFilters()" style="margin-bottom:12px">
-        <select id="displayMode" onchange="applyFilters()" style="margin-bottom:12px">
+    <aside class="sidebar" id="sidebar">
+        <h4>🔍 搜索</h4>
+        <input type="text" id="searchInput" placeholder="搜索关键词..." oninput="applyFilters()">
+        <h4>📂 展示模式</h4>
+        <select id="displayMode" onchange="applyFilters()">
             <option value="all">共同展示</option>
-            <option value="by-ip">按IP</option>
-            <option value="by-type">按种类</option>
+            <option value="by-ip">按IP分类</option>
+            <option value="by-type">按种类分类</option>
         </select>
+        <h4>📋 IP筛选</h4>
         <div class="filter-group" id="ipFilters"></div>
+        <h4>🎭 角色筛选</h4>
         <div class="filter-group" id="charFilters"></div>
+        <h4>🏷️ 制品种类</h4>
         <div class="filter-group" id="typeFilters"></div>
+        <h4>📌 状态</h4>
         <div class="filter-group" id="statusFilters">
             <span class="filter-chip active" data-status="all" onclick="setStatus('all',this)">全部</span>
             <span class="filter-chip" data-status="已下单" onclick="setStatus('已下单',this)">已下单</span>
@@ -85,25 +109,28 @@
             <span class="filter-chip" data-status="运输中" onclick="setStatus('运输中',this)">运输中</span>
             <span class="filter-chip" data-status="囤货中" onclick="setStatus('囤货中',this)">囤货中</span>
         </div>
-        <div id="stats" style="margin:8px 0"></div>
-        <button class="btn btn-outline btn-sm" style="width:100%" onclick="clearFilters()">🔄 清除</button>
+        <h4>📊 统计</h4>
+        <div id="stats" style="font-size:0.9em"></div>
+        <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px" onclick="clearFilters()">🔄 清除所有筛选</button>
     </aside>
-    <div class="content-area" style="flex:1">
+    <div class="content-area">
         <div id="waterfall" class="waterfall"></div>
-        <div id="empty" style="display:none;text-align:center;padding:60px">📭 暂无谷子</div>
+        <div id="empty" style="display:none;text-align:center;padding:60px;color:var(--text-light)">📭 还没有谷子哦~ 点击"+ 添加谷子"开始吧！</div>
     </div>
 </div>
 
-<div class="ai-panel collapsed" id="aiPanel" style="position:fixed;bottom:20px;right:20px;width:380px;background:var(--card-bg);border-radius:var(--radius);box-shadow:0 12px 40px rgba(0,0,0,0.2);z-index:150">
-    <div class="ai-header" onclick="toggleAI()" style="padding:10px 14px;cursor:pointer;font-weight:700;display:flex;justify-content:space-between">🤖 AI 导入 <span id="aiIcon">▲</span></div>
-    <div class="ai-messages" id="aiMsgs" style="padding:10px;max-height:300px;overflow-y:auto;font-size:0.82em"></div>
-    <div style="display:flex;gap:6px;padding:10px;border-top:1px solid var(--border)">
-        <input id="aiInput" placeholder="描述谷子..." style="flex:1" onkeydown="if(event.key==='Enter')sendAI()">
+<!-- AI 面板 -->
+<div class="ai-panel collapsed" id="aiPanel">
+    <div class="ai-header" onclick="toggleAI()">🤖 AI 谷子导入助手 <span id="aiIcon">▲</span></div>
+    <div class="ai-messages" id="aiMsgs"><div class="ai-msg bot">你好！描述谷子信息，如"CN小明 原神 钟离 吧唧 A柄 2个 45元 已下单 未交本体"</div></div>
+    <div class="ai-input-row">
+        <input id="aiInput" placeholder="描述谷子信息..." onkeydown="if(event.key==='Enter')sendAI()">
         <button class="btn btn-primary btn-sm" onclick="sendAI()">发送</button>
     </div>
 </div>
 
 <input type="file" id="excelInput" accept=".csv,.xlsx" hidden onchange="handleExcel(event)">
+<input type="file" id="imgInput" accept="image/*" hidden onchange="handleImage(event)">
 <div id="modalContainer"></div>
 <div id="toastContainer"></div>
 
@@ -123,8 +150,6 @@ const STATE = {
 function $(id){return document.getElementById(id)}
 function toast(msg,ok=true){const d=document.createElement('div');d.className=`toast ${ok?'toast-success':'toast-error'}`;d.textContent=msg;$('toastContainer').appendChild(d);setTimeout(()=>d.remove(),2500)}
 function fmtDate(d){if(!d)return'';const dt=new Date(d);return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`}
-function daysBetween(d1,d2){return Math.floor((new Date(d2)-new Date(d1))/86400000)}
-function firstOfMonth(d){const dt=new Date(d);return new Date(dt.getFullYear(),dt.getMonth(),1)}
 
 async function api(path,method='GET',body=null){
     const headers={'Content-Type':'application/json'};
@@ -145,33 +170,48 @@ function switchMode(mode){
     STATE.mode=mode;
     document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
     document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
-    if(mode==='personal'){STATE.groupId=null;STATE.list=[...STATE.personal]}
-    else{if(!STATE.user){openLogin();return}if(STATE.groupId)loadGroupGuzi().then(()=>{applyFilters();updateStats()})}
+    if(mode==='personal'){
+        STATE.groupId=null;
+        STATE.list=[...STATE.personal];
+    }else{
+        if(!STATE.user){openLogin();return}
+        if(STATE.groupId)loadGroupGuzi().then(()=>{applyFilters();updateStats()});
+    }
     applyFilters();updateStats();updateChips();
 }
 
 function updateUI(){
     if(STATE.user){
-        $('btnLogin').style.display='none';$('btnLogout').style.display='';$('btnMsg').style.display='';
+        $('btnLogin').style.display='none';$('btnLogout').style.display='';
+        $('btnMsg').style.display='';
         $('userInfo').textContent=`👤 ${STATE.user.cn}`;
-        if(STATE.user.role==='leader'||STATE.user.role==='admin')$('btnManage').style.display='';else $('btnManage').style.display='none';
-        if(STATE.groupId){const g=STATE.groups.find(gr=>gr.id==STATE.groupId);$('groupBadge').style.display='';$('groupBadge').textContent=g?`📦 ${g.name}`:''}
+        if(STATE.user.role==='leader'||STATE.user.role==='admin')$('btnManage').style.display='';
+        else $('btnManage').style.display='none';
+        if(STATE.groupId){
+            const g=STATE.groups.find(gr=>gr.id==STATE.groupId);
+            $('groupBadge').style.display='';$('groupBadge').textContent=g?`📦 ${g.name}`:'';
+        }
     }else{
-        $('btnLogin').style.display='';$('btnLogout').style.display='none';$('btnManage').style.display='none';$('btnMsg').style.display='none';
+        $('btnLogin').style.display='';$('btnLogout').style.display='none';
+        $('btnManage').style.display='none';$('btnMsg').style.display='none';
         $('userInfo').textContent='';$('groupBadge').style.display='none';
     }
 }
 
+// ========== 弹窗：登录/创建团 ==========
 function openLogin(){
     $('modalContainer').innerHTML=`
-    <div class="modal-overlay" id="loginOverlay"><div class="modal" style="max-width:400px"><h3>🔑 登录</h3>
-    <div><label>QQ号</label><input id="loginQQ"></div>
-    <div><label>圈名/CN</label><input id="loginCN"></div>
-    <div><label>选择团</label><select id="loginGroup"><option value="">--选择--</option></select></div>
+    <div class="modal-overlay" id="loginOverlay"><div class="modal" style="max-width:400px"><h3>🔑 登录开团版</h3>
+    <div><label>QQ号（账号）</label><input id="loginQQ" placeholder="QQ号"></div>
+    <div><label>圈名 / CN（昵称）</label><input id="loginCN" placeholder="例如：小明"></div>
+    <div><label>选择团</label><select id="loginGroup"><option value="">--选择团--</option></select></div>
     <button class="btn btn-primary" onclick="doLogin()">登录</button>
-    <button class="btn btn-outline btn-sm" onclick="createGroupModal()">+ 创建团</button>
+    <button class="btn btn-outline btn-sm" onclick="createGroupModal()">+ 创建新团</button>
     <button class="btn btn-outline btn-sm" onclick="closeModal('loginOverlay')">取消</button></div></div>`;
-    loadGroups().then(()=>{const sel=$('loginGroup');sel.innerHTML='<option value="">--选择--</option>'+STATE.groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('')});
+    loadGroups().then(()=>{
+        const sel=$('loginGroup');
+        sel.innerHTML='<option value="">--选择团--</option>'+STATE.groups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+    });
 }
 async function doLogin(){
     const qq=$('loginQQ')?.value.trim(),cn=$('loginCN')?.value.trim(),gid=$('loginGroup')?.value;
@@ -181,50 +221,56 @@ async function doLogin(){
 function createGroupModal(){
     $('modalContainer').innerHTML=`
     <div class="modal-overlay" id="createOverlay"><div class="modal" style="max-width:400px"><h3>🌟 创建新团</h3>
-    <div><label>团名称</label><input id="newName"></div>
-    <div><label>QQ号</label><input id="newQQ"></div>
-    <div><label>圈名/CN</label><input id="newCN"></div>
+    <div><label>团名称</label><input id="newName" placeholder="例如：原神谷子团"></div>
+    <div><label>您的QQ号</label><input id="newQQ"></div>
+    <div><label>您的圈名/CN</label><input id="newCN"></div>
     <button class="btn btn-primary" onclick="doCreateGroup()">创建</button>
     <button class="btn btn-outline btn-sm" onclick="closeModal('createOverlay')">取消</button></div></div>`;
 }
 async function doCreateGroup(){
     const name=$('newName')?.value.trim(),qq=$('newQQ')?.value.trim(),cn=$('newCN')?.value.trim();
     if(!name||!qq||!cn)return toast('请填写完整',false);
-    try{await login(qq,cn);const d=await api('/groups','POST',{name});STATE.groupId=d.group.id;await loadGroups();await loadGroupGuzi();updateUI();switchMode('group');closeModal('createOverlay');if($('loginOverlay'))closeModal('loginOverlay');toast('团创建成功')}catch(e){toast(e.message,false)}
+    try{await login(qq,cn);const d=await api('/groups','POST',{name});STATE.groupId=d.group.id;await loadGroups();await loadGroupGuzi();updateUI();switchMode('group');closeModal('createOverlay');if($('loginOverlay'))closeModal('loginOverlay');toast('团创建成功！')}catch(e){toast(e.message,false)}
 }
 
+// ========== 管理团弹窗（添加团员/管理员、转移团长、留言） ==========
 function openManage(){
     $('modalContainer').innerHTML=`
     <div class="modal-overlay" id="manageOverlay"><div class="modal" style="max-width:500px"><h3>⚙️ 管理团</h3>
-    <div><label>添加管理员</label><div style="display:flex;gap:6px"><input id="adminQQ" placeholder="QQ"><input id="adminCN" placeholder="圈名"><button class="btn btn-primary btn-sm" onclick="addAdmin()">添加</button></div></div>
-    <div style="margin-top:8px"><label>添加团员</label><div style="display:flex;gap:6px"><input id="memberQQ" placeholder="QQ"><input id="memberCN" placeholder="圈名"><button class="btn btn-primary btn-sm" onclick="addMember()">添加</button></div></div>
-    <div style="margin-top:8px"><label>转移团长</label><div style="display:flex;gap:6px"><input id="transferQQ" placeholder="新团长QQ"><button class="btn btn-danger btn-sm" onclick="transferLeader()">转移</button></div></div>
-    <div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="viewMsgs()">查看留言</button><div id="msgsDisplay" style="max-height:200px;overflow-y:auto"></div></div>
-    <button class="btn btn-outline btn-sm" onclick="closeModal('manageOverlay')">关闭</button></div></div>`;
+    <div><label>添加管理员</label><div style="display:flex;gap:6px"><input id="adminQQ" placeholder="管理员QQ号"><input id="adminCN" placeholder="管理员圈名"><button class="btn btn-primary btn-sm" onclick="addAdmin()">添加</button></div></div>
+    <div style="margin-top:8px"><label>添加团员</label><div style="display:flex;gap:6px"><input id="memberQQ" placeholder="团员QQ号"><input id="memberCN" placeholder="团员圈名"><button class="btn btn-primary btn-sm" onclick="addMember()">添加</button></div></div>
+    <div style="margin-top:8px"><label>转移团长身份</label><div style="display:flex;gap:6px"><input id="transferQQ" placeholder="新团长QQ号"><button class="btn btn-danger btn-sm" onclick="transferLeader()">转移</button></div></div>
+    <div style="margin-top:8px"><button class="btn btn-outline btn-sm" onclick="viewMsgs()">查看团员留言</button><div id="msgsDisplay" style="max-height:200px;overflow-y:auto;font-size:0.82em;margin-top:4px"></div></div>
+    <button class="btn btn-outline btn-sm" onclick="closeModal('manageOverlay')" style="margin-top:12px">关闭</button></div></div>`;
 }
-async function addAdmin(){try{await api(`/groups/${STATE.groupId}/admins`,'POST',{qq:$('adminQQ').value,cn:$('adminCN').value});toast('已添加')}catch(e){toast(e.message,false)}}
-async function addMember(){try{await api(`/groups/${STATE.groupId}/members`,'POST',{qq:$('memberQQ').value,cn:$('memberCN').value});toast('已添加')}catch(e){toast(e.message,false)}}
-async function transferLeader(){try{await api(`/groups/${STATE.groupId}/transfer`,'POST',{newLeaderQq:$('transferQQ').value});toast('已转移');closeModal('manageOverlay');logout()}catch(e){toast(e.message,false)}}
-async function viewMsgs(){try{const d=await api(`/groups/${STATE.groupId}/messages`);$('msgsDisplay').innerHTML=d.messages.map(m=>`<div><b>${m.sender_cn}</b>: ${m.content}</div>`).join('')||'暂无'}catch(e){toast('加载失败',false)}}
-function openMsg(){
-    $('modalContainer').innerHTML=`<div class="modal-overlay" id="msgOverlay"><div class="modal" style="max-width:400px"><h3>💬 留言</h3><textarea id="msgContent" rows="4"></textarea><button class="btn btn-primary" onclick="sendMsg()">发送</button></div></div>`;
-}
-async function sendMsg(){try{await api(`/groups/${STATE.groupId}/messages`,'POST',{content:$('msgContent').value});toast('已发送');closeModal('msgOverlay')}catch(e){toast(e.message,false)}}
+async function addAdmin(){try{await api(`/groups/${STATE.groupId}/admins`,'POST',{qq:$('adminQQ').value,cn:$('adminCN').value});toast('管理员已添加')}catch(e){toast(e.message,false)}}
+async function addMember(){try{await api(`/groups/${STATE.groupId}/members`,'POST',{qq:$('memberQQ').value,cn:$('memberCN').value});toast('团员已添加')}catch(e){toast(e.message,false)}}
+async function transferLeader(){try{await api(`/groups/${STATE.groupId}/transfer`,'POST',{newLeaderQq:$('transferQQ').value});toast('团长已转移');closeModal('manageOverlay');logout()}catch(e){toast(e.message,false)}}
+async function viewMsgs(){try{const d=await api(`/groups/${STATE.groupId}/messages`);$('msgsDisplay').innerHTML=d.messages.map(m=>`<div style="padding:4px;border-bottom:1px solid #eee"><b>${m.sender_cn}</b>: ${m.content}</div>`).join('')||'暂无留言'}catch(e){toast('加载失败',false)}}
 
+// 留言弹窗（团员用）
+function openMsg(){
+    $('modalContainer').innerHTML=`
+    <div class="modal-overlay" id="msgOverlay"><div class="modal" style="max-width:400px"><h3>💬 给团长留言</h3><textarea id="msgContent" rows="4" placeholder="输入留言..."></textarea>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-outline btn-sm" onclick="closeModal('msgOverlay')">取消</button><button class="btn btn-primary" onclick="sendMsg()">发送留言</button></div></div></div>`;
+}
+async function sendMsg(){try{await api(`/groups/${STATE.groupId}/messages`,'POST',{content:$('msgContent').value});toast('留言已发送');closeModal('msgOverlay')}catch(e){toast(e.message,false)}}
+
+// ========== 谷子表单（新字段） ==========
 function openGuziModal(guzi=null){
     const d=guzi||{cn:STATE.user?STATE.user.cn:'',ip:'',character:'',type:'',artwork:'',quantity:1,price:'',status:'已下单',payment_status:'未交本体',payment_date:'',added_date:new Date().toISOString().split('T')[0],storage:'',notes:''};
     const typeList = ['吧唧','立牌','挂件','色纸','海报','明信片','亚克力砖','毛绒','其他'];
     $('modalContainer').innerHTML=`
     <div class="modal-overlay" id="guziOverlay"><div class="modal"><h3>${guzi?'✏️ 编辑':'🌾 添加'}谷子</h3>
     <div class="form-grid">
-      <div><label>圈名/CN</label><input id="gCN" value="${d.cn}"></div>
-      <div><label>IP</label><input id="gIP" value="${d.ip}"></div>
+      <div><label>圈名/CN *</label><input id="gCN" value="${d.cn}"></div>
+      <div><label>所属IP *</label><input id="gIP" value="${d.ip}"></div>
       <div><label>角色</label><input id="gChar" value="${d.character}"></div>
-      <div><label>种类</label><input list="typeOptions" id="gType" value="${d.type||''}" placeholder="选择或输入"></div>
+      <div><label>种类</label><input list="typeOptions" id="gType" value="${d.type||''}" placeholder="选择或自定义输入"></div>
       <datalist id="typeOptions">${typeList.map(t=>`<option value="${t}">`).join('')}</datalist>
       <div><label>柄图</label><input id="gArtwork" value="${d.artwork||''}" placeholder="例如：A柄"></div>
       <div><label>数量</label><input type="number" id="gQty" value="${d.quantity}" min="1"></div>
-      <div><label>价格</label><input type="number" id="gPrice" value="${d.price}" step="0.01"></div>
+      <div><label>价格(元)</label><input type="number" id="gPrice" value="${d.price}" step="0.01"></div>
       <div><label>状态</label><select id="gStatus">
         <option value="已下单" ${d.status==='已下单'?'selected':''}>已下单</option>
         <option value="未出荷" ${d.status==='未出荷'?'selected':''}>未出荷</option>
@@ -276,12 +322,15 @@ async function saveGuzi(){
 async function deleteGuzi(){
     if(!confirm('确定删除？'))return;
     const id=$('gEditId').value;
-    if(STATE.mode==='personal'){STATE.personal=STATE.personal.filter(g=>g.id!==id);localStorage.setItem('guzi_personal',JSON.stringify(STATE.personal));STATE.list=[...STATE.personal]}
-    else{try{await api(`/groups/${STATE.groupId}/guzi/${id}`,'DELETE');await loadGroupGuzi()}catch(e){return toast(e.message,false)}}
+    if(STATE.mode==='personal'){
+        STATE.personal=STATE.personal.filter(g=>g.id!==id);
+        localStorage.setItem('guzi_personal',JSON.stringify(STATE.personal));STATE.list=[...STATE.personal];
+    }else{try{await api(`/groups/${STATE.groupId}/guzi/${id}`,'DELETE');await loadGroupGuzi()}catch(e){return toast(e.message,false)}}
     closeModal('guziOverlay');applyFilters();updateStats();updateChips();toast('已删除');
 }
 function closeModal(id){const el=$(id);if(el)el.remove()}
 
+// ========== 筛选系统 ==========
 function setStatus(s,el){
     document.querySelectorAll('#statusFilters .filter-chip').forEach(c=>c.classList.remove('active'));
     el.classList.add('active');STATE.filters.status=s;applyFilters();
@@ -326,7 +375,7 @@ function card(g){
       <div style="font-size:0.75em;color:var(--text-light)">📅 ${fmtDate(g.added_date)}</div>
     </div>`;
 }
-function updateStats(list){$('stats').innerHTML=`总计: <strong>${list.length}</strong>`}
+function updateStats(list){const l=list||[];$('stats').innerHTML=`<span>总计: <strong>${l.length}</strong></span>`}
 function updateChips(){
     const all=STATE.mode==='personal'?STATE.personal:STATE.list;
     const ips=[...new Set(all.map(g=>g.ip).filter(Boolean))];
@@ -342,7 +391,7 @@ function setChip(cat,val,el){
     el.classList.add('active');STATE.filters[cat]=val;applyFilters();
 }
 
-// AI 优化识别
+// ========== AI 识别 ==========
 function toggleAI(){$('aiPanel').classList.toggle('collapsed');$('aiIcon').textContent=$('aiPanel').classList.contains('collapsed')?'▲':'▼'}
 function sendAI(){
     const msg=$('aiInput').value.trim();if(!msg)return;
@@ -352,7 +401,7 @@ function sendAI(){
         STATE.aiPending=parsed;
         $('aiMsgs').innerHTML+=`<div class="ai-msg bot">✅ 识别：${parsed.cn} ${parsed.ip} ${parsed.character} ${parsed.type} ${parsed.artwork||''} x${parsed.quantity}<br>状态:${parsed.status} 交肾:${parsed.payment_status}<br><button class="btn btn-primary btn-sm" onclick="confirmAI()">确认导入</button></div>`;
     }else{
-        $('aiMsgs').innerHTML+=`<div class="ai-msg bot">未能识别，请重试</div>`;
+        $('aiMsgs').innerHTML+=`<div class="ai-msg bot">未能识别，请重试。例如：CN小明 原神 钟离 吧唧 A柄 2个 45元 已下单 未交本体</div>`;
     }
     $('aiInput').value='';$('aiMsgs').scrollTop=$('aiMsgs').scrollHeight;
 }
@@ -375,9 +424,10 @@ function confirmAI(){
     const d=STATE.aiPending;d.id='p_'+Date.now();
     if(STATE.mode==='personal'){STATE.personal.push(d);localStorage.setItem('guzi_personal',JSON.stringify(STATE.personal));STATE.list=[...STATE.personal]}
     else api(`/groups/${STATE.groupId}/guzi`,'POST',d).then(()=>loadGroupGuzi());
-    STATE.aiPending=null;applyFilters();updateStats();updateChips();toast('导入成功');
+    STATE.aiPending=null;applyFilters();updateStats();updateChips();toast('AI导入成功！');
 }
 
+// ========== Excel / 图片 ==========
 function handleExcel(e){
     const file=e.target.files[0];if(!file)return;
     const reader=new FileReader();
@@ -399,7 +449,9 @@ function handleExcel(e){
     };
     reader.readAsText(file);e.target.value='';
 }
+function handleImage(e){toast('图片已接收（模拟识别），实际使用请接入OCR',false);openGuziModal();e.target.value=''}
 
+// ========== 初始化 ==========
 async function init(){
     STATE.list=[...STATE.personal];
     const token=localStorage.getItem('token');
