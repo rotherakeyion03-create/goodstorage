@@ -184,6 +184,11 @@ function updateUI(){
     if(STATE.user){
         $('btnLogin').style.display='none';$('btnLogout').style.display='';
         $('btnMsg').style.display='';
+        if(STATE.user.role==='leader'||STATE.user.role==='admin') {
+    $('btnManage').style.display='';
+} else {
+    $('btnManage').style.display='none';
+}
         $('userInfo').textContent=`👤 ${STATE.user.cn}`;
         if(STATE.user.role==='leader'||STATE.user.role==='admin')$('btnManage').style.display='';
         else $('btnManage').style.display='none';
