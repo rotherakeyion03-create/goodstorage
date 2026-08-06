@@ -115,13 +115,13 @@
     </aside>
     <div class="content-area">
         <div id="waterfall" class="waterfall"></div>
-        <div id="empty" style="display:none;text-align:center;padding:60px;color:var(--text-light)">📭 还没有谷子哦~ 点击"+ 添加谷子"开始吧！</div>
+        <div id="empty" style="display:none;text-align:center;padding:60px;color:var(--text-light)">📭 还没有谷子哦~</div>
     </div>
 </div>
 
 <div class="ai-panel collapsed" id="aiPanel">
     <div class="ai-header" onclick="toggleAI()">🤖 AI 谷子导入助手 <span id="aiIcon">▲</span></div>
-    <div class="ai-messages" id="aiMsgs"><div class="ai-msg bot">你好！描述谷子信息，如"CN小明 原神 钟离 吧唧 A柄 2个 45元 已下单 未交本体"</div></div>
+    <div class="ai-messages" id="aiMsgs"><div class="ai-msg bot">描述谷子信息，如"CN小明 原神 钟离 吧唧 A柄 2个 45元 已下单 未交本体"</div></div>
     <div class="ai-input-row">
         <input id="aiInput" placeholder="描述谷子信息..." onkeydown="if(event.key==='Enter')sendAI()">
         <button class="btn btn-primary btn-sm" onclick="sendAI()">发送</button>
@@ -149,17 +149,17 @@ const STATE = {
 function $(id){return document.getElementById(id)}
 function toast(msg,ok=true){const d=document.createElement('div');d.className=`toast ${ok?'toast-success':'toast-error'}`;d.textContent=msg;$('toastContainer').appendChild(d);setTimeout(()=>d.remove(),2500)}
 function fmtDate(d){if(!d)return'';const dt=new Date(d);return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`}
-function daysBetween(d1,d2){return Math.floor((new Date(d2)-new Date(d1))/86400000)}
-function firstOfMonth(d){const dt=new Date(d);return new Date(dt.getFullYear(),dt.getMonth(),1)}
 
 async function api(path,method='GET',body=null){
     const headers={'Content-Type':'application/json'};
     const token=localStorage.getItem('token');
     if(token)headers['Authorization']='Bearer '+token;
     const res=await fetch(API+path,{method,headers,body:body?JSON.stringify(body):null});
-    const data=await res.json();
-    if(!res.ok)throw new Error(data.error||'请求失败');
-    return data;
+    if(!res.ok){
+        const text = await res.text();
+        throw new Error(text || '请求失败');
+    }
+    return res.json();
 }
 
 async function login(qq,cn){
@@ -182,7 +182,7 @@ async function loadGroupGuzi(){
 
 function getCurrentRole(){
     if(!STATE.user||!STATE.groupId) return null;
-    const member = STATE.user.groups?.find(g => g.group_id === STATE.groupId);
+    const member = STATE.user.groups?.find(g => g.group_id == STATE.groupId);
     return member ? member.role : null;
 }
 
@@ -268,18 +268,19 @@ async function doCreateGroup(){
     const name=$('newName')?.value.trim(),qq=$('newQQ')?.value.trim(),cn=$('newCN')?.value.trim();
     if(!name||!qq||!cn)return toast('请填写完整',false);
     try{
-        await login(qq,cn); // 先登录，获取 token
-        const d = await api('/groups','POST',{name}); // 创建团
+        await login(qq,cn);                     // 登录获取token
+        const d = await api('/groups','POST',{name});  // 创建团
         STATE.groupId = d.group.id;
-        await loadGroups();
-        const meData = await api('/auth/me');
-        STATE.user = meData.user;
-        await loadGroupGuzi();
+        // 手动添加leader角色到user.groups，无需重新请求/auth/me
+        if (!STATE.user.groups) STATE.user.groups = [];
+        STATE.user.groups.push({ group_id: STATE.groupId, role: 'leader' });
+        await loadGroups();                     // 刷新团列表
+        await loadGroupGuzi();                  // 加载当前团谷子（空）
         updateUI();
         switchMode('group');
         closeModal('createOverlay');
         if($('loginOverlay'))closeModal('loginOverlay');
-        toast('团创建成功！您现在是团长啦');
+        toast('团创建成功！您现在是团长');
     }catch(e){toast(e.message,false)}
 }
 
@@ -448,9 +449,9 @@ function sendAI(){
     const parsed=parseAI(msg);
     if(parsed){
         STATE.aiPending=parsed;
-        $('aiMsgs').innerHTML+=`<div class="ai-msg bot">✅ 识别：${parsed.cn} ${parsed.ip} ${parsed.character} ${parsed.type} ${parsed.artwork||''} x${parsed.quantity}<br>状态:${parsed.status} 交肾:${parsed.payment_status}<br><button class="btn btn-primary btn-sm" onclick="confirmAI()">确认导入</button></div>`;
+        $('aiMsgs').innerHTML+=`<div class="ai-msg bot">✅ 识别：${parsed.cn} ${parsed.ip} ${parsed.character} ${parsed.type} ${parsed.artwork||''} x${parsed.quantity} 状态:${parsed.status} 交肾:${parsed.payment_status}<br><button class="btn btn-primary btn-sm" onclick="confirmAI()">确认导入</button></div>`;
     }else{
-        $('aiMsgs').innerHTML+=`<div class="ai-msg bot">未能识别，请重试。例如：CN小明 原神 钟离 吧唧 A柄 2个 45元 已下单 未交本体</div>`;
+        $('aiMsgs').innerHTML+=`<div class="ai-msg bot">未能识别，请重试。</div>`;
     }
     $('aiInput').value='';$('aiMsgs').scrollTop=$('aiMsgs').scrollHeight;
 }
@@ -473,7 +474,7 @@ function confirmAI(){
     const d=STATE.aiPending;d.id='p_'+Date.now();
     if(STATE.mode==='personal'){STATE.personal.push(d);localStorage.setItem('guzi_personal',JSON.stringify(STATE.personal));STATE.list=[...STATE.personal]}
     else api(`/groups/${STATE.groupId}/guzi`,'POST',d).then(()=>loadGroupGuzi());
-    STATE.aiPending=null;applyFilters();updateStats();updateChips();toast('AI导入成功！');
+    STATE.aiPending=null;applyFilters();updateStats();updateChips();toast('导入成功');
 }
 
 // ========== Excel/图片 ==========
@@ -498,9 +499,9 @@ function handleExcel(e){
     };
     reader.readAsText(file);e.target.value='';
 }
-function handleImage(e){toast('图片已接收（模拟识别），实际使用请接入OCR',false);openGuziModal();e.target.value=''}
+function handleImage(e){toast('图片已接收（模拟识别）',false);openGuziModal();e.target.value=''}
 
-// ========== 初始化 ==========
+// 初始化
 async function init(){
     STATE.list=[...STATE.personal];
     const token=localStorage.getItem('token');
